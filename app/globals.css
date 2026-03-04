@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start: #030918;
+  --background-end: #071236;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(to bottom, var(--background-start), var(--background-end));
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Score ring animation */
+@keyframes drawCircle {
+  from { stroke-dashoffset: 440; }
+  to   { stroke-dashoffset: var(--target-offset); }
+}
+
+.score-ring-circle {
+  animation: drawCircle 1.2s ease-out forwards;
+  stroke-dasharray: 440;
+}
+
+/* Blur overlay for gated content */
+.blur-gated {
+  filter: blur(6px);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0f1f52; }
+::-webkit-scrollbar-thumb { background: #3d5cac; border-radius: 3px; }
