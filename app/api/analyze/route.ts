@@ -5,6 +5,9 @@ import { saveScan } from "@/lib/store";
 
 export const maxDuration = 60;
 
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_JOB_TITLE_LENGTH = 200;
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -19,9 +22,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (jobTitle.trim().length > MAX_JOB_TITLE_LENGTH) {
+      return NextResponse.json(
+        { error: "Job title is too long." },
+        { status: 400 }
+      );
+    }
+
     let text = "";
 
     if (file && file.size > 0) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        return NextResponse.json(
+          { error: "File is too large. Maximum size is 5 MB." },
+          { status: 400 }
+        );
+      }
+
+      // Validate MIME type — only accept PDFs
+      if (file.type !== "application/pdf") {
+        return NextResponse.json(
+          { error: "Only PDF files are supported." },
+          { status: 400 }
+        );
+      }
+
       // Server-side PDF parsing
       const buffer = Buffer.from(await file.arrayBuffer());
       const pdfParse = (await import("pdf-parse")).default;
@@ -63,9 +88,11 @@ export async function POST(request: NextRequest) {
     // Never return resume text in the response
     return NextResponse.json({ id, overallScore: analysis.overallScore });
   } catch (err) {
+    // Log the full error server-side but never expose internal details to clients
     console.error("Analyze error:", err);
-    const message =
-      err instanceof Error ? err.message : "Analysis failed. Please try again.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Analysis failed. Please try again." },
+      { status: 500 }
+    );
   }
 }

@@ -16,6 +16,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (plan !== "one-time" && plan !== "monthly") {
+      return NextResponse.json(
+        { error: "Invalid plan. Must be 'one-time' or 'monthly'." },
+        { status: 400 }
+      );
+    }
+
     const scan = getScan(scanId);
     if (!scan) {
       return NextResponse.json({ error: "Scan not found." }, { status: 404 });
