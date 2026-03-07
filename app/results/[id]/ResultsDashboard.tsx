@@ -25,6 +25,19 @@ interface Props {
   justPaid: boolean;
 }
 
+function isSafeRedirectUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // Allow Stripe-hosted checkout pages
+    if (parsed.protocol === "https:" && parsed.hostname.endsWith(".stripe.com")) return true;
+    // Allow same-origin redirects (e.g. already-paid flow)
+    if (typeof window !== "undefined" && parsed.origin === window.location.origin) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export default function ResultsDashboard({ scan, scanId, justPaid }: Props) {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
@@ -49,6 +62,10 @@ export default function ResultsDashboard({ scan, scanId, justPaid }: Props) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to start checkout.");
+      // Validate the redirect URL is safe before navigating
+      if (!isSafeRedirectUrl(data.url)) {
+        throw new Error("Invalid redirect URL received from server.");
+      }
       window.location.href = data.url;
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : "Something went wrong.");

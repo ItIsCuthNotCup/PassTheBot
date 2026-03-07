@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { analyzeResume } from "@/lib/claude";
 import { saveScan } from "@/lib/store";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const maxDuration = 60;
 
@@ -10,6 +11,22 @@ const MAX_JOB_TITLE_LENGTH = 200;
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate-limit by IP to prevent API cost abuse
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
+    const rl = checkRateLimit(ip);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rl.retryAfter) },
+        }
+      );
+    }
+
     const formData = await request.formData();
     const jobTitle = formData.get("jobTitle") as string | null;
     const resumeText = formData.get("resumeText") as string | null;

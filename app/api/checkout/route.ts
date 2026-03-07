@@ -1,19 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { getScan } from "@/lib/store";
+import { getScan, isValidUUID } from "@/lib/store";
 
 export async function POST(request: NextRequest) {
   try {
-    const { scanId, plan } = await request.json() as {
-      scanId: string;
-      plan: "one-time" | "monthly";
-    };
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
 
-    if (!scanId || !plan) {
+    if (typeof body !== "object" || body === null) {
+      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
+
+    const { scanId, plan } = body as Record<string, unknown>;
+
+    if (typeof scanId !== "string" || !scanId) {
       return NextResponse.json(
         { error: "scanId and plan are required." },
         { status: 400 }
       );
+    }
+
+    if (typeof plan !== "string" || !plan) {
+      return NextResponse.json(
+        { error: "scanId and plan are required." },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidUUID(scanId)) {
+      return NextResponse.json({ error: "Scan not found." }, { status: 404 });
     }
 
     if (plan !== "one-time" && plan !== "monthly") {
@@ -28,13 +47,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Scan not found." }, { status: 404 });
     }
 
-    if (scan.paid) {
-      // Already paid — just redirect
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-      return NextResponse.json({ url: `${baseUrl}/results/${scanId}` });
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (!baseUrl) {
+      console.error("NEXT_PUBLIC_BASE_URL environment variable is not set");
+      return NextResponse.json(
+        { error: "Server configuration error." },
+        { status: 500 }
+      );
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+    if (scan.paid) {
+      // Already paid — just redirect
+      return NextResponse.json({ url: `${baseUrl}/results/${scanId}` });
+    }
 
     const priceId =
       plan === "monthly"

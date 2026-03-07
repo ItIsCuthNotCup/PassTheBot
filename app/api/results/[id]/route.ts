@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getScan } from "@/lib/store";
+import { getScan, isValidUUID } from "@/lib/store";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  if (!isValidUUID(id)) {
+    return NextResponse.json({ error: "Scan not found." }, { status: 404 });
+  }
   const scan = getScan(id);
   if (!scan) {
     return NextResponse.json({ error: "Scan not found." }, { status: 404 });
